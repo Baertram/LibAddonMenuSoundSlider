@@ -142,6 +142,7 @@ local function UpdateValue(control, forceDefault, value)
             soundIndex = soundIndexLookup[value]
             valueOfSlider = value
         else
+            if type(defaultVar) ~= "string" then defaultVar = soundsRef[conNone] end
             soundNameInternal = soundLookup[defaultVar]
             soundIndex = soundIndexLookup[defaultVar]
             valueOfSlider = soundIndex
@@ -151,6 +152,7 @@ local function UpdateValue(control, forceDefault, value)
         if value ~= nil then
             valueOfSlider = value
         else
+            if type(defaultVar) ~= "number" then defaultVar = 1 end
             valueOfSlider = defaultVar
         end
     end
