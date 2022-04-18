@@ -5,7 +5,7 @@
     setFunc = function(value) db.var = value doStuff() end,
     autoSelect = false, -- boolean, automatically select everything in the text input field when it gains focus (optional)
     inputLocation = "below", -- or "right", determines where the input field is shown. This should not be used within the addon menu and is for custom sliders (optional)
-    showSoundName = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be shown at the label of the slider
+    showSoundName = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be shown at the label of the slider, and at the tooltip too
     playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound
     readOnly = true, -- boolean, you can use the slider, but you can't insert a value manually (optional)
     tooltip = "Sound slider's tooltip text.", -- or string id or function returning a string (optional)
@@ -31,24 +31,32 @@ local strformat = string.format
 local tins = table.insert
 local tsort = table.sort
 
+local defaultTooltip
+
 --The sounds table of the game
 local soundsRef = SOUNDS
 --The number of possible sounds in the game
 local numSounds = NonContiguousCount(soundsRef)
---The sound names table, sorted by name
-local soundNames = {}
-for soundName, soundInternalName in pairs(soundsRef) do
-    if soundName ~= "NONE" then
-        tins(soundNames, soundName)
+
+--The sound names table, sorted by name. Only create once and cache at LibAddonMenu2 table!
+LAM.cache = LAM.cache or {}
+local soundNames = LAM.cache.soundNames
+if soundNames == nil then
+    soundNames = {}
+    for soundName, soundInternalName in pairs(soundsRef) do
+        if soundName ~= "NONE" then
+            tins(soundNames, soundName)
+        end
     end
+    tsort(soundNames)
+    --Insert "none" as first sound
+    tins(soundNames, 1, "NONE")
 end
-tsort(soundNames)
-if #soundNames <= 0 then
+if #soundNames <= 1 then
     d("[LibAddonMenuSoundSlider] ERROR No sounds could be found - Widget won't work properly!")
     return
 end
---Insert "none" as first sound
-tins(soundNames, 1, "NONE")
+LAM.cache.soundNames = soundNames
 
 
 local SLIDER_HANDLER_NAMESPACE = "LAM2_SoundSlider"
@@ -79,7 +87,9 @@ end
 
 local function raiseSoundChangedCallback(panel, control, value)
     local soundName = soundNames[value] or "n/a"
-    if control.data.playSound and value > 1 and soundsRef[soundName] ~= nil then
+    local playSoundData = control.data.playSound
+    local playSound = (playSoundData ~= nil and util.GetDefaultValue(playSoundData)) or false
+    if playSound == true and value > 1 and soundsRef[soundName] ~= nil then
         PlaySound(soundsRef[soundName])
     end
     cm:FireCallbacks("LibAddonMenuSoundSlider_UpdateValue", panel or LAM.currentAddonPanel, control, value, soundName)
@@ -87,21 +97,28 @@ end
 
 local function updateSoundSliderLabel(control, value)
     local data = control.data
-    if data.showSoundName == true then
-        --Show the sound name at the slider's label
-        local soundName = soundNames[value] or "n/a"
-        control.slidervalue:SetText(soundName)
+    local showSoundName = (data.showSoundName ~= nil and util.GetDefaultValue(data.showSoundName)) or false
+    if showSoundName == true then
+        --Show the sound name at the slider's label too
+        local soundName = soundNames[value]
+        if soundName and soundName ~= "" then
+            control.label:SetText(data.name .. " " .. soundName)
+            control.data.tooltipText = defaultTooltip ..  "\n" .. soundName
+        end
     else
-        --Only show the slider's value at the label
-        control.slidervalue:SetText(value)
+        --Only show the slider's name at the label
+        control.label:SetText(data.name)
+        control.data.tooltipText = defaultTooltip
     end
 end
 
 local function UpdateValue(control, forceDefault, value)
+    local doNotPlaySound = true
     if forceDefault then --if we are forcing defaults
         value = util.GetDefaultValue(control.data.default)
         control.data.setFunc(value)
-    elseif value then
+    elseif value ~= nil then
+        doNotPlaySound = false
         control.data.setFunc(value)
         --after setting this value, let's refresh the others to see if any should be disabled or have their settings changed
         util.RequestRefreshIfNeeded(control)
@@ -110,16 +127,25 @@ local function UpdateValue(control, forceDefault, value)
     end
 
     control.slider:SetValue(value)
+    control.slidervalue:SetText(value)
 
     updateSoundSliderLabel(control, value)
     --Play the sound now and raise the callback function
-    raiseSoundChangedCallback(nil, control, value)
+    if not doNotPlaySound then
+        raiseSoundChangedCallback(nil, control, value)
+    end
 end
 
 local index = 1
 function LAMCreateControl.soundslider(parent, sliderData, controlName)
     local control = util.CreateLabelAndContainerControl(parent, sliderData, controlName)
     local isInputOnRight = sliderData.inputLocation == "right"
+
+    --Cache the default tooltip
+    defaultTooltip = sliderData.tooltip or sliderData.name
+    --Default values: Show sound name / Play sound
+    if sliderData.showSoundName == nil then sliderData.showSoundName = true end
+    if sliderData.playSound == nil then sliderData.playSound = true end
 
     --skipping creating the backdrop...  Is this the actual slider texture?
     control.slider = wm:CreateControl(nil, control.container, CT_SLIDER)
@@ -185,7 +211,8 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
         if isHandlingChange then return end
         isHandlingChange = true
         slider:SetValue(value)
-        --slidervalue:SetText(value)
+        slidervalue:SetText(value)
+
         updateSoundSliderLabel(control, value)
         isHandlingChange = false
     end
