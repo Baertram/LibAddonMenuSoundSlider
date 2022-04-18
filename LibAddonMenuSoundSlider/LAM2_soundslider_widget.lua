@@ -49,7 +49,7 @@ for soundName, soundInternalName in pairs(soundsRef) do
         tins(soundNames, soundName)
         idx = idx +1
         soundLookup[idx] = soundInternalName
-        soundIndexLookup[soundInternalName] = idx
+        soundIndexLookup[soundInternalName] = idx + 1 --+1 as later the "None" sound will be at index 1
     end
 end
 tsort(soundNames)
