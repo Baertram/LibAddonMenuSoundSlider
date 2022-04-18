@@ -43,9 +43,11 @@ local conNone= "NONE"
 local soundNames = {}
 local soundLookup = {}
 local soundIndexLookup = {}
+local idx = 0
 for soundName, soundInternalName in pairs(soundsRef) do
     if soundName ~= conNone then
-        local idx = tins(soundNames, soundName)
+        tins(soundNames, soundName)
+        idx = idx +1
         soundLookup[idx] = soundInternalName
         soundIndexLookup[soundInternalName] = idx
     end
@@ -57,7 +59,9 @@ if #soundNames <= 0 then
 end
 --Insert "NONE" as first sound
 tins(soundNames, 1, conNone)
-tins(soundLookup, 1, soundsRef[conNone])
+local nonSoundInternalName = soundsRef[conNone]
+tins(soundLookup, 1, nonSoundInternalName)
+soundIndexLookup[nonSoundInternalName] = 1
 
 --The number of possible sounds in the game
 local numSounds = #soundNames
