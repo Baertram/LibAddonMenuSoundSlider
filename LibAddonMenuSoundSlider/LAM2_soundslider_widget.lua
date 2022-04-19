@@ -86,9 +86,9 @@ local SLIDER_HANDLER_NAMESPACE = "LAM2_SoundSlider"
 --Parameters: soundIndex number of the soundSlider's getFunc.
 -->Will only work if the soundSlider's soundSliderData table entry saveSoundIndex == true! Else the getFunc's returned
 -->value will be the internal_sound_name String already!
---Returns internal_sound_name String
+--Returns nilable:internal_sound_name String
 function ConvertLAMSoundSliderSoundIndexToName(soundIndex)
-    if soundIndex == nil then return end
+    if soundIndex == nil or type(soundIndex) ~= "number" or soundIndex <= 0 or soundIndex > numSounds then return end
     return soundLookup[soundIndex]
 end
 
