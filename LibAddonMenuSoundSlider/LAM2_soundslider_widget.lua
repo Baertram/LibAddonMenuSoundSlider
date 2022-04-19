@@ -38,18 +38,15 @@ local defaultTooltip
 --The sounds table of the game
 local soundsRef = SOUNDS
 local conNone= "NONE"
+local nonSoundInternalName = soundsRef[conNone]
 
 --The sound names table, sorted by name. Only create once and cache at LibAddonMenu2 table!
 local soundNames = {}
 local soundLookup = {}
 local soundIndexLookup = {}
-local idx = 0
-for soundName, soundInternalName in pairs(soundsRef) do
+for soundName, _ in pairs(soundsRef) do
     if soundName ~= conNone then
         tins(soundNames, soundName)
-        idx = idx +1
-        soundLookup[idx] = soundInternalName
-        soundIndexLookup[soundInternalName] = idx + 1 --+1 as later the "None" sound will be at index 1
     end
 end
 tsort(soundNames)
@@ -59,8 +56,13 @@ if #soundNames <= 0 then
 end
 --Insert "NONE" as first sound
 tins(soundNames, 1, conNone)
-local nonSoundInternalName = soundsRef[conNone]
-tins(soundLookup, 1, nonSoundInternalName)
+
+local idx = 0
+for idx, soundName in ipairs(soundNames) do
+    local soundInternalName = soundsRef[soundName]
+    soundLookup[idx] = soundInternalName
+    soundIndexLookup[soundInternalName] = idx
+end
 soundIndexLookup[nonSoundInternalName] = 1
 
 --The number of possible sounds in the game
@@ -170,10 +172,10 @@ local function UpdateValue(control, forceDefault, value)
     else
         value = data.getFunc()
         --> getfunc changes value to the "internal_sound_name" but the slider needs the value as number! Get index via mapping table for internal_sound_name to number
-        if not saveSoundIndex and value ~= nil then
-            valueOfSlider = soundIndexLookup[value]
-        elseif value == nil then
-            valueOfSlider = 1 --fallback value = index 1 "NONE"
+        if not saveSoundIndex then
+            valueOfSlider = (value ~= nil and soundIndexLookup[value]) or 1
+        else
+            valueOfSlider = (value ~= nil and value) or 1
         end
     end
 
