@@ -19,7 +19,7 @@
     reference = "MyAddonSoundSlider" -- unique global reference to control (optional)
 } ]]
 
-local widgetVersion = 1
+local widgetVersion = 2
 local widgetName = "LibAddonMenuSoundSlider"
 
 local LAM = LibAddonMenu2
@@ -68,14 +68,29 @@ soundIndexLookup[nonSoundInternalName] = 1
 --The number of possible sounds in the game
 local numSounds = #soundNames
 
+--[[
+--For debugging only
 LAM.soundData = {
     origSounds = soundsRef,
     soundNames = soundNames,
     soundLookup = soundLookup,
     soundIndexLookup = soundIndexLookup,
 }
+]]
 
 local SLIDER_HANDLER_NAMESPACE = "LAM2_SoundSlider"
+
+
+--Global function to convert the soundSlider soundIndex to the internal SOUNDS name, which you can play via the
+--API function PlaySound(internal_sound_name)
+--Parameters: soundIndex number of the soundSlider's getFunc.
+-->Will only work if the soundSlider's soundSliderData table entry saveSoundIndex == true! Else the getFunc's returned
+-->value will be the internal_sound_name String already!
+--Returns internal_sound_name String
+function ConvertLAMSoundSliderSoundIndexToName(soundIndex)
+    if soundIndex == nil then return end
+    return soundLookup[soundIndex]
+end
 
 
 local function UpdateDisabled(control)
