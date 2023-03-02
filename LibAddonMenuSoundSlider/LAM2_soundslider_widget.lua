@@ -111,6 +111,7 @@ local function playSoundDelayedInLoop(playNTimes, delayInBetween, soundToPlay, s
 	playNTimes = playNTimes or 1
 	delayInBetween = delayInBetween or 0
 	soundRepeats = soundRepeats or 1
+    local delay = 0
 	--Do N times: Play the sound (each time with soundRepeats loops to increase the volume)
 	local loopWasPlayed = false
     for i=1, playNTimes, 1 do
@@ -118,10 +119,11 @@ local function playSoundDelayedInLoop(playNTimes, delayInBetween, soundToPlay, s
 --d(">call " ..tostring(i))
 			loopWasPlayed = playSoundLoopNow(soundToPlay, soundRepeats)
 		else
+            delay = delay + delayInBetween
 			zo_callLater(function()
                 playSoundLoopNow(soundToPlay, soundRepeats)
 --d(">call " ..tostring(i))
-            end, delayInBetween)
+            end, delay)
             loopWasPlayed = true
 		end
 	end
