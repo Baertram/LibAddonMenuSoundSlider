@@ -81,7 +81,18 @@ LAM.soundData = {
 ]]
 
 local SLIDER_HANDLER_NAMESPACE = "LAM2_SoundSlider"
-
+local translation = {
+    ["de"] = {previewSound = "Ausgewählten Sound \'%s\' abspielen"},
+    ["en"] = {previewSound = "Preview selected sound \'%s\'"},
+    ["es"] = {previewSound = "Vista previa del sonido seleccionado \'%s\'"},
+    ["fr"] = {previewSound = "Prévisualiser le son sélectionné \'%s\'"},
+    ["ru"] = {previewSound = "Предварительный просмотр выбранного звука \'%s\'"},
+    ["jp"] = {previewSound = "選択したサウンド \'%s\' をプレビュー"},
+    ["zh"] = {previewSound = "预览选定的声音 \'%s\'"},
+}
+local clientLang = GetCVar("language.2")
+local langStrings = translation[clientLang]
+if langStrings == nil then langStrings = translation["en"] end --Fallback language: English
 
 --Global function to convert the soundSlider soundIndex to the internal SOUNDS name, which you can play via the
 --API function PlaySound(internal_sound_name)
@@ -208,6 +219,11 @@ local function updateSoundSliderLabel(control, value)
         --Only show the slider's name at the label
         control.label:SetText(data.name)
         data.tooltipText = defaultTooltip
+    end
+
+    if control.playSoundButton ~= nil then
+        local isHidden = (value <= 1 and true) or false
+        control.playSoundButton:SetHidden(isHidden)
     end
 end
 
@@ -445,39 +461,30 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
 
             control.playSoundButton = playSoundButton
 
-            --[[
-                playSoundButton:SetParent(control)
-                playSoundButton:SetDrawTier(DT_MEDIUM)
-                playSoundButton:SetDrawLayer(DL_CONTROLS)
-                playSoundButton:SetDrawLevel(1)
-            ]]
             if control.isHalfWidth then
-                playSoundButton:SetDimensions(20, 20)
-                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 5)
+                playSoundButton:SetDimensions(24, 24)
+                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 8)
             else
                 playSoundButton:SetDimensions(28, 28)
-                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 11)
+                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 12)
             end
             playSoundButton:SetNormalTexture("/esoui/art/icons/item_u26_soundofsuccess.dds") --/esoui/art/battlegrounds/battlegrounds_scoretracker_playerteamindicator.dds (Play icon)
             playSoundButton:SetPressedOffset(2, 2)
-
-
             playSoundButton:SetNormalFontColor(ZO_HINT_TEXT:UnpackRGBA()) --ZO_NORMAL_TEXT
-            playSoundButton:SetText("Preview")
-
-            playSoundButton:SetHidden(false)
 
             playSoundButton:SetMouseEnabled(true)
-            playSoundButton.data = {tooltipText = "Preview selected sound"}
-            playSoundButton:SetHandler("OnMouseEnter", ZO_Options_OnMouseEnter)
+            playSoundButton:SetHandler("OnMouseEnter", function(playSoundButtonCtrl)
+                playSoundButtonCtrl.data = {tooltipText = string.format(langStrings.previewSound, tostring(soundNames[slider:GetValue()]))}
+                ZO_Options_OnMouseEnter(playSoundButtonCtrl)
+            end)
             playSoundButton:SetHandler("OnMouseExit", ZO_Options_OnMouseExit)
 
-            playSoundButton:SetClickSound("Click")
-            playSoundButton:SetHandler("OnClicked", function(soundButtonCtrl)
-                local value = slider:GetValue()
-                playSoundPreview(control, tonumber(value))
+            --playSoundButton:SetClickSound("Click")
+            playSoundButton:SetHandler("OnClicked", function()
+                playSoundPreview(control, tonumber(slider:GetValue()))
             end)
 
+            playSoundButton:SetHidden(true) --will be changed at UpdateValue call -> function updateSoundSliderLabel
         end
     end
 
