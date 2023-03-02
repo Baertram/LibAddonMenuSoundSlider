@@ -9,6 +9,7 @@
     showSoundName = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be shown at the label of the slider, and at the tooltip too
     playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound. Will be ignored if table playSoundData is provided!
     playSoundData = {number playCount, number delayInMS, number increaseVolume}, -- table or function returning a table. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10) (optional)
+    showPlaySoundButton = false, --Boolean or function returning a boolean. If true a button control will be shown next to the slider, which will preview the selected sound (based on playSoundData or playSound. If both are nil/false the button won't be shown) (optional)
     readOnly = true, -- boolean, you can use the slider, but you can't insert a value manually (optional)
     tooltip = "Sound slider's tooltip text.", -- or string id or function returning a string (optional)
     width = "full", -- or "half" (optional)
@@ -35,6 +36,7 @@ local tins = table.insert
 local tsort = table.sort
 
 local defaultTooltip
+local playSoundButtonCount = 0
 
 --The sounds table of the game
 local soundsRef = SOUNDS
@@ -153,7 +155,7 @@ local function UpdateDisabled(control)
     end
 end
 
-local function raiseSoundChangedCallback(panel, control, value)
+local function playSoundPreview(control, value)
     local soundName = soundNames[value] or "n/a"
     local data = control.data
     local playSoundData =   data.playSoundData
@@ -180,6 +182,13 @@ local function raiseSoundChangedCallback(panel, control, value)
                 end
             end
         end
+    end
+end
+
+local function raiseSoundChangedCallback(panel, control, value)
+    local soundName = soundNames[value] or "n/a"
+    if control.playSoundButton == nil then
+        playSoundPreview(control, value)
     end
     cm:FireCallbacks("LibAddonMenuSoundSlider_UpdateValue", panel or LAM.currentAddonPanel, control, value, soundName)
 end
@@ -251,7 +260,6 @@ local function UpdateValue(control, forceDefault, value)
             valueOfSlider = (value ~= nil and value) or 1
         end
     end
-
     control.slider:SetValue(valueOfSlider)
     control.slidervalue:SetText(valueOfSlider)
 
@@ -267,7 +275,7 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
     local control = util.CreateLabelAndContainerControl(parent, sliderData, controlName)
     local isInputOnRight = sliderData.inputLocation == "right"
 
-    --Disable singe PlaySound if the table with additional PlaySound params is provided
+    --Disable single PlaySound if the table with additional PlaySound params is provided
     local playSoundData = getDefaultValue(sliderData.playSoundData)
     if playSoundData ~= nil then
         sliderData.playSound = false
@@ -417,6 +425,60 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
         control.warning:SetAnchor(RIGHT, slider, LEFT, -5, 0)
         control.UpdateWarning = util.UpdateWarning
         control:UpdateWarning()
+    end
+
+    --Show a "Play Sound" button for the preview, or directly play as the setFunc is called?
+    local showPlaySoundButton = getDefaultValue(sliderData.showPlaySoundButton)
+    if showPlaySoundButton == true then
+        --Create the sound preview button
+        local ctrlName = controlName or control:GetName()
+        local playSoundButtonName
+        if ctrlName == nil or ctrlName == "" then
+            playSoundButtonCount = playSoundButtonCount + 1
+            playSoundButtonName = widgetName .. "_PlaySoundButton" .. tostring(playSoundButtonCount)
+        else
+            playSoundButtonName = ctrlName .. "_PlaySoundButton"
+        end
+        --local playSoundButton = wm:CreateControlFromVirtual(playSoundButtonName, control, "ZO_DefaultButton")
+        local playSoundButton = wm:CreateControl(playSoundButtonName, control, CT_BUTTON)
+        if playSoundButton ~= nil then
+
+            control.playSoundButton = playSoundButton
+
+            --[[
+                playSoundButton:SetParent(control)
+                playSoundButton:SetDrawTier(DT_MEDIUM)
+                playSoundButton:SetDrawLayer(DL_CONTROLS)
+                playSoundButton:SetDrawLevel(1)
+            ]]
+            if control.isHalfWidth then
+                playSoundButton:SetDimensions(20, 20)
+                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 5)
+            else
+                playSoundButton:SetDimensions(28, 28)
+                playSoundButton:SetAnchor(BOTTOMRIGHT, control, BOTTOMRIGHT, 0, 11)
+            end
+            playSoundButton:SetNormalTexture("/esoui/art/icons/item_u26_soundofsuccess.dds") --/esoui/art/battlegrounds/battlegrounds_scoretracker_playerteamindicator.dds (Play icon)
+            playSoundButton:SetPressedOffset(2, 2)
+
+
+            playSoundButton:SetNormalFontColor(ZO_HINT_TEXT:UnpackRGBA()) --ZO_NORMAL_TEXT
+            playSoundButton:SetText("Preview")
+
+            playSoundButton:SetHidden(false)
+
+            playSoundButton:SetMouseEnabled(true)
+            playSoundButton.data = {tooltipText = "Preview selected sound"}
+            playSoundButton:SetHandler("OnMouseEnter", ZO_Options_OnMouseEnter)
+            playSoundButton:SetHandler("OnMouseExit", ZO_Options_OnMouseExit)
+
+            playSoundButton:SetClickSound("Click")
+            playSoundButton:SetHandler("OnClicked", function(soundButtonCtrl)
+                local value = slider:GetValue()
+                playSoundPreview(control, tonumber(value))
+            end)
+
+        end
     end
 
     control.UpdateValue = UpdateValue
