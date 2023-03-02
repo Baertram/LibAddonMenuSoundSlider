@@ -22,6 +22,7 @@ https://www.esoui.com/downloads/info3346-LibAddonMenu-SoundSliderwidget.html
 | showSoundName  | boolean, function        | false   | no       | If set to true (default) the selected sound name will be shown at the label of the slider, and at the tooltip too        |
 | playSound      | boolean, function        | false   | no       | If set to true (default) the selected sound name will be played via function PlaySound. If playSoundData is provided then playSound will be automatically set to false!  |
 | playSoundData  | table, function          | nil     | no       | Table or function returning a table {number playCount, number delayInMS, number increaseVolume}. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10). |
+| showPlaySoundButton | boolean, function   | false   | no       | If true a button control will be shown next to the slider, which will preview the selected sound (based on playSoundData or playSound. If both are nil/false the button won't be shown) |
 | requiresReload | boolean                  | false   | no       | Appends a special warning text and shows a reload button if the value is changed        |
 | disabled       | boolean, function        | false   | no       | Determines if the slider is disabled and its value cannot be changed                    |
 | width          | string                   | "full"  | no       | "full" or "half" width in the panel                                                     |
@@ -68,8 +69,9 @@ LAM:RegisterOptionControls(panelName, {
             type = 'soundslider',
             name = "My sound slider 1",
             tooltip = "This is a sound slider, number 1",
-			playSound = false, --play the sound upon selection (disabled as playSoundData was provided!)
-            playSoundData = {2, 500, 3}, -- play 2 times with a delay in between of 500ms, making the volume increase by 2 (same sound is played 2 times at the same time)
+			playSound = false, --play the sound upon selection (disabled automtically internally as playSoundData table was provided too!)
+            playSoundData = {playCount = 2, delayInMS = 500, increaseVolume = 2 }, -- play 2 times with a delay in between of 500ms, making the volume increase by 2 (same sound is played 2 times at the same time)
+			showPlaySoundButton = function() return true end,
             showSoundName = true, --show the sound name at the slider's label and tooltip
             saveSoundIndex = false, -- save the sound name, not the index (index could change)
             getFunc = function()
