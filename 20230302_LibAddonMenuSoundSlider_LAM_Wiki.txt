@@ -1,0 +1,90 @@
+The Sound slider control offers a powerful way to choose one of the ingame sounds of the table SOUNDS, either the internal sound name (String, default) or the index (number which could change).
+It shows a label followed by a slider with input field.
+The slider can be controlled by clicking and dragging or with the help of the mouse wheel. 
+Values can also be entered via the input field below the slider.
+
+https://www.esoui.com/downloads/info3346-LibAddonMenu-SoundSliderwidget.html
+
+![SoundSlider example image](https://cdn-eso.mmoui.com/preview/pvw11362.png)
+
+
+## Data Table
+|  property      |       type               | default | required |                            description                                                  |
+|:---------------|:-------------------------|:--------|:---------|:----------------------------------------------------------------------------------------|
+| type           | string                   | -       | yes      | The widget type of this control ("slider")                                              |
+| name           | number, string, function | -       | yes      | The label for the slider                                                                |
+| getFunc        | function                 | -       | yes      | The value provider for the checkbox. Needs to return a numeric value                    |
+| setFunc        | function                 | -       | yes      | The assignment function for the checkbox. Needs to accept a numeric value               |
+| default        | number, function         | nil     | no       | Default value of the slider which is used to reset the panel to its defaults            |
+| warning        | number, string, function | nil     | no       | Shows a warning icon beside the slider which has a tooltip with some warning text       |
+| tooltip        | number, string, function | nil     | no       | The tooltip to display for the slider                                                   |
+| saveSoundIndex | boolean, function        | false   | no       | If set to false (default) the internal soundName will be saved. If set to true the selected sound's index will be saved to the SavedVariables (the index might change if sounds get inserted later!)       |
+| showSoundName  | boolean, function        | false   | no       | If set to true (default) the selected sound name will be shown at the label of the slider, and at the tooltip too        |
+| playSound      | boolean, function        | false   | no       | If set to true (default) the selected sound name will be played via function PlaySound. If playSoundData is provided then playSound will be automatically set to false!  |
+| playSoundDAta  | table, function          | nil     | no       | Table or function returning a table {number playCount, number delayInMS, number increaseVolume}. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10). |
+| requiresReload | boolean                  | false   | no       | Appends a special warning text and shows a reload button if the value is changed        |
+| disabled       | boolean, function        | false   | no       | Determines if the slider is disabled and its value cannot be changed                    |
+| width          | string                   | "full"  | no       | "full" or "half" width in the panel                                                     |
+| reference      | string                   | nil     | no       | A unique global reference to the control                                                |
+| readOnly       | boolean                  | -       | no       | When true, you can use the slider, but you can't insert a value manually |
+| helpUrl           | string, function      | -       | no       | A string URL "https://www.esoui.com", or a function that returns one |
+| autoSelect*    | boolean                  | false   | no       | When set to true, everything in the input field will be selected when it gains focus    |
+| inputLocation* | string                   | "below" | no       | "below" or "right". Determines where the input field is shown.                          |
+
+*This should not be used within the addon menu to ensure a consistent user experience and is for custom sliders outside of the addon menu only.
+
+## Exposed Methods
+### control:UpdateValue([*boolean* forceDefault[, *number* value]])
+This method updates the state of the slider with the value returned by getFunc if no arguments are passed.
+If forceDefaults is true, it will set the slider to the value in the default property.
+If forceDefaults is false and value is not nil, it will set the slider to the passed value
+
+### control:UpdateDisabled()
+Only is exposed when the disabled property is not nil.
+This method updates the disabled state of the slider based on the resolved value of the disabled property.
+
+### control:UpdateWarning()
+Only is exposed when the warning property or the requiresReload property is set.
+This method updates the warning of the slider based on the resolved value of the warning and requiresReload property.
+
+
+## API functions
+```lua
+--Global function to convert the soundSlider soundIndex to the internal SOUNDS name, which you can play via the
+--API function PlaySound(internal_sound_name)
+--Parameters: soundIndex number of the soundSlider's getFunc.
+-->Will only work if the soundSlider's soundSliderData table entry saveSoundIndex == true! Else the getFunc's returned
+-->value will be the internal_sound_name String already!
+--Returns nilable:internal_sound_name String
+function ConvertLAMSoundSliderSoundIndexToName(soundIndex)
+```
+
+## Examples
+```lua
+
+--LAM sound slider control added to options panel
+LAM:RegisterOptionControls(panelName, {
+{
+            type = 'soundslider',
+            name = "My sound slider 1",
+            tooltip = "This is a sound slider, number 1",
+			playSound = false, --play the sound upon selection (disabled as playSoundData was provided!)
+            playSoundData = {2, 500, 3}, -- play 2 times with a delay in between of 500ms, making the volume increase by 2 (same sound is played 2 times at the same time)
+            showSoundName = true, --show the sound name at the slider's label and tooltip
+            saveSoundIndex = false, -- save the sound name, not the index (index could change)
+            getFunc = function()
+                return myAddon.settings.soundName1
+            end,
+            setFunc = function(value)
+                myAddon.settings.soundName1 = value
+            end,
+            default = myAddon.settingsDefault.soundName1,
+            reference = "MyAddonSoundSlider1",
+        }
+})
+
+--Convert the soundSlider's soundIndex to a playable internal_sound_name String
+--This will only work if the soundSlider's soundSliderData table's entry saveSoundIndex == true (saving the index instead of the internal_sound_name)
+local internalSoundName = ConvertLAMSoundSliderSoundIndexToName(myAddon.settings.soundIndex1)
+if internalSoundName ~= nil then PlaySound(internalSoundName) end
+```

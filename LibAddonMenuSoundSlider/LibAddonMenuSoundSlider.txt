@@ -1,9 +1,9 @@
-## APIVersion: 101033 101034
+## APIVersion: 101036 101037
 ## Title: LibAddonMenu-2.0 - Sound slider widget
-## Version: 2
-## AddOnVersion: 002
+## Version: 3
+## AddOnVersion: 003
 ## IsLibrary: true
-## DependsOn: LibAddonMenu-2.0>=33
+## DependsOn: LibAddonMenu-2.0>=34
 ## Author: Baertram
 ## Description: A sound selection slider widget for the library LibAddonMenu-2.0
 ##

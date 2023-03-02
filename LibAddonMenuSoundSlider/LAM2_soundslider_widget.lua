@@ -7,7 +7,8 @@
     inputLocation = "below", -- or "right", determines where the input field is shown. This should not be used within the addon menu and is for custom sliders (optional)
     saveSoundIndex = false, -- or function returning a boolean (optional) If set to false (default) the internal soundName will be saved. If set to true the selected sound's index will be saved to the SavedVariables (the index might change if sounds get inserted later!).
     showSoundName = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be shown at the label of the slider, and at the tooltip too
-    playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound
+    playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound. Will be ignored if table playSoundData is provided!
+    playSoundData = {number playCount, number delayInMS, number increaseVolume}, -- table or function returning a table. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10) (optional)
     readOnly = true, -- boolean, you can use the slider, but you can't insert a value manually (optional)
     tooltip = "Sound slider's tooltip text.", -- or string id or function returning a string (optional)
     width = "full", -- or "half" (optional)
@@ -19,7 +20,7 @@
     reference = "MyAddonSoundSlider" -- unique global reference to control (optional)
 } ]]
 
-local widgetVersion = 2
+local widgetVersion = 3
 local widgetName = "LibAddonMenuSoundSlider"
 
 local LAM = LibAddonMenu2
@@ -57,7 +58,6 @@ end
 --Insert "NONE" as first sound
 tins(soundNames, 1, conNone)
 
-local idx = 0
 for idx, soundName in ipairs(soundNames) do
     local soundInternalName = soundsRef[soundName]
     soundLookup[idx] = soundInternalName
@@ -92,6 +92,41 @@ function ConvertLAMSoundSliderSoundIndexToName(soundIndex)
     return soundLookup[soundIndex]
 end
 
+local function playSoundLoopNow(soundToPlay, soundRepeats)
+--d("[LAM2SoundSlider]PlaySound: " ..tostring(soundToPlay) .. ", volumeIncrease: " ..tostring(soundRepeats))
+	if not soundToPlay or not soundsRef[soundToPlay] then return false end
+	soundRepeats = soundRepeats or 1
+	local wasPlayed = false
+    for i=1, soundRepeats, 1 do
+		--Play the sound (multiple times will play it louder)
+		PlaySound(soundsRef[soundToPlay])
+        wasPlayed = true
+	end
+    return wasPlayed
+end
+
+local function playSoundDelayedInLoop(playNTimes, delayInBetween, soundToPlay, soundRepeats)
+--d(string.format("[LAM2SoundSlider]Playing %s times: %q (%sx repeated), with a delay of %s seconds", tostring(playNTimes), tostring(soundToPlay), tostring(soundRepeats), tostring(delayInBetween)))
+	if not soundToPlay or not soundsRef[soundToPlay] then return false end
+	playNTimes = playNTimes or 1
+	delayInBetween = delayInBetween or 0
+	soundRepeats = soundRepeats or 1
+	--Do N times: Play the sound (each time with soundRepeats loops to increase the volume)
+	local loopWasPlayed = false
+    for i=1, playNTimes, 1 do
+		if i == 1 then
+--d(">call " ..tostring(i))
+			loopWasPlayed = playSoundLoopNow(soundToPlay, soundRepeats)
+		else
+			zo_callLater(function()
+                playSoundLoopNow(soundToPlay, soundRepeats)
+--d(">call " ..tostring(i))
+            end, delayInBetween)
+            loopWasPlayed = true
+		end
+	end
+    return loopWasPlayed
+end
 
 local function UpdateDisabled(control)
     local disable
@@ -118,10 +153,31 @@ end
 
 local function raiseSoundChangedCallback(panel, control, value)
     local soundName = soundNames[value] or "n/a"
-    local playSoundData = control.data.playSound
-    local playSound = (playSoundData ~= nil and getDefaultValue(playSoundData)) or false
-    if playSound == true and value > 1 and soundsRef[soundName] ~= nil then
-        PlaySound(soundsRef[soundName])
+    local data = control.data
+    local playSoundData =   data.playSoundData
+    local playSound =       (playSoundData == nil and data.playSound) or false
+
+    if value > 1 then
+        local doPlaySingleSound = (playSound ~= nil and getDefaultValue(playSound)) or false
+        if doPlaySingleSound == true then
+            playSoundLoopNow(soundName, 1)
+        else
+            if playSoundData ~= nil then
+                playSoundData = getDefaultValue(playSoundData)
+                --playSoundData = {number playCount, number delayInMS, number increaseVolume},
+                local playCount = playSoundData.playCount
+                playCount = playCount or 1 --repeat the sound n times (loop)
+                local delayInMS = playSoundData.delayInMS
+                delayInMS = delayInMS or 0 --milliseconds
+                local increaseVolume = playSoundData.increaseVolume
+                increaseVolume = increaseVolume or 1 --Increase volume by playing the sound miltiple times after another
+                increaseVolume = zo_clamp(increaseVolume, 1, 10)
+
+                if playCount ~= nil and delayInMS ~= nil and increaseVolume ~= nil then
+                    playSoundDelayedInLoop(playCount, delayInMS, soundName, increaseVolume)
+                end
+            end
+        end
     end
     cm:FireCallbacks("LibAddonMenuSoundSlider_UpdateValue", panel or LAM.currentAddonPanel, control, value, soundName)
 end
@@ -208,6 +264,12 @@ local index = 1
 function LAMCreateControl.soundslider(parent, sliderData, controlName)
     local control = util.CreateLabelAndContainerControl(parent, sliderData, controlName)
     local isInputOnRight = sliderData.inputLocation == "right"
+
+    --Disable singe PlaySound if the table with additional PlaySound params is provided
+    local playSoundData = getDefaultValue(sliderData.playSoundData)
+    if playSoundData ~= nil then
+        sliderData.playSound = false
+    end
 
     --Cache the default tooltip
     defaultTooltip = sliderData.tooltip or sliderData.name
