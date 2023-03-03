@@ -10,6 +10,7 @@
     playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound. Will be ignored if table playSoundData is provided!
     playSoundData = {number playCount, number delayInMS, number increaseVolume}, -- table or function returning a table. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10) (optional)
     showPlaySoundButton = false, --Boolean or function returning a boolean. If true a button control will be shown next to the slider, which will preview the selected sound (based on playSoundData or playSound. If both are nil/false the button won't be shown) (optional)
+    noAutomaticSoundPreview = false, --Boolean or function returning a boolean. Only works if showPlaySoundButton is true! If true the automatic sound preview (based on playSoundData or playSound) will be disabled and only the sound preview button is shown (optional)
     readOnly = true, -- boolean, you can use the slider, but you can't insert a value manually (optional)
     tooltip = "Sound slider's tooltip text.", -- or string id or function returning a string (optional)
     width = "full", -- or "half" (optional)
@@ -21,7 +22,7 @@
     reference = "MyAddonSoundSlider" -- unique global reference to control (optional)
 } ]]
 
-local widgetVersion = 3
+local widgetVersion = 4
 local widgetName = "LibAddonMenuSoundSlider"
 
 local LAM = LibAddonMenu2
@@ -197,10 +198,10 @@ local function playSoundPreview(control, value)
 end
 
 local function raiseSoundChangedCallback(panel, control, value)
-    local soundName = soundNames[value] or "n/a"
-    if control.playSoundButton == nil then
+    if control.playSoundButton == nil or not control.noAutomaticSoundPreview then
         playSoundPreview(control, value)
     end
+    local soundName = soundNames[value] or "n/a"
     cm:FireCallbacks("LibAddonMenuSoundSlider_UpdateValue", panel or LAM.currentAddonPanel, control, value, soundName)
 end
 
@@ -444,7 +445,9 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
     end
 
     --Show a "Play Sound" button for the preview, or directly play as the setFunc is called?
+    control.noAutomaticSoundPreview = getDefaultValue(sliderData.noAutomaticSoundPreview)
     local showPlaySoundButton = getDefaultValue(sliderData.showPlaySoundButton)
+    control.showPlaySoundButton = showPlaySoundButton
     if showPlaySoundButton == true then
         --Create the sound preview button
         local ctrlName = controlName or control:GetName()
