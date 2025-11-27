@@ -10,7 +10,7 @@
     playSound = true, -- or function returning a boolean (optional) If set to true (default) the selected sound name will be played via function PlaySound. Will be ignored if table playSoundData is provided!
     playSoundData = {number playCount, number delayInMS, number increaseVolume}, -- table or function returning a table. If this table is provided the chosen sound will be played playCount (default is 1) times after each other, with a delayInMS (default is 0) in milliseconds in between, and each played sound will be played increaseVolume times (directly at the same time) to increase the volume (default is 1, max is 10) (optional)
     showPlaySoundButton = false, --Boolean or function returning a boolean. If true a button control will be shown next to the slider, which will preview the selected sound (based on playSoundData or playSound. If both are nil/false the button won't be shown) (optional)
-    noAutomaticSoundPreview = false, --Boolean or function returning a boolean. Only works if showPlaySoundButton is true! If true the automatic sound preview (based on playSoundData or playSound) will be disabled and only the sound preview button is shown (optional)
+    noAutomaticSoundPreview = false, --Boolean or function returning a boolean. Only works if showPlaySoundButton is true! If true the automatic sound preview (based on playSoundData or playSound) will be disabled and only the sound preview button is used to play the sound (optional)
     readOnly = true, -- boolean, you can use the slider, but you can't insert a value manually (optional)
     tooltip = "Sound slider's tooltip text.", -- or string id or function returning a string (optional)
     width = "full", -- or "half" (optional)
@@ -199,8 +199,11 @@ local function UpdateDisabled(control)
 
     control.slider:SetEnabled(isEnabled)
     control.slidervalue:SetEditEnabled((not readOnly and isEnabled) or false)
-    control.playSoundButton:SetEnabled(isEnabled)
-    control.playSoundButton:SetMouseEnabled(isEnabled)
+    if control.playSoundButton ~= nil then
+        control.playSoundButton:SetEnabled(isEnabled)
+        control.playSoundButton:SetMouseEnabled(isEnabled)
+    end
+
     if disable == true then
         control.label:SetColor(ZO_DEFAULT_DISABLED_COLOR:UnpackRGBA())
         --control.minText:SetColor(ZO_DEFAULT_DISABLED_COLOR:UnpackRGBA())
