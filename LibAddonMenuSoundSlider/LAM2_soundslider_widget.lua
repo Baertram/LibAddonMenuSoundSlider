@@ -217,13 +217,14 @@ local function UpdateDisabled(control)
     end
 end
 
-local function playSoundPreview(control, value)
-    local soundName = soundNames[value] or "n/a"
-    local data = control.data
-    local playSoundData =   data.playSoundData
-    local playSound =       (playSoundData == nil and data.playSound) or false
-
+local function playSoundPreview(control, value, doForcePlay)
+    doForcePlay = doForcePlay or false
     if value > 1 then
+        local soundName = soundNames[value] or "n/a"
+        local data = control.data
+        local playSoundData =   data.playSoundData
+        local playSound =       (playSoundData == nil and data.playSound) or false
+
         local doPlaySingleSound = (playSound ~= nil and getDefaultValue(playSound)) or false
         if doPlaySingleSound == true then
             playSoundLoopNow(soundName, 1)
@@ -241,6 +242,10 @@ local function playSoundPreview(control, value)
 
                 if playCount ~= nil and delayInMS ~= nil and increaseVolume ~= nil then
                     playSoundDelayedInLoop(playCount, delayInMS, soundName, increaseVolume)
+                end
+            else
+                if doForcePlay == true then
+                   playSoundLoopNow(soundName, 1)
                 end
             end
         end
@@ -571,7 +576,7 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
             --playSoundButton:SetClickSound("Click")
             playSoundButton:SetHandler("OnClicked", function()
                 if control.isDisabled then return end
-                playSoundPreview(control, tonumber(slider:GetValue()))
+                playSoundPreview(control, tonumber(slider:GetValue()), true)
             end)
 
             playSoundButton:SetMouseEnabled(true)
