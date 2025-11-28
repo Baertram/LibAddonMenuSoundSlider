@@ -255,19 +255,18 @@ local function raiseSoundChangedCallback(panel, control, value)
     cm:FireCallbacks("LibAddonMenuSoundSlider_UpdateValue", panel or LAM.currentAddonPanel, control, value, soundName)
 end
 
-local function updateSoundSliderLabel(control, value)
+local function updateSoundSliderLabelAndTooltip(control, value)
     local data = control.data
-    local showSoundNameData = data.showSoundName
-    local showSoundName = (showSoundNameData ~= nil and getDefaultValue(showSoundNameData)) or false
+    local showSoundName = getDefaultValue(data.showSoundName) or false
     if showSoundName == true then
-        --Show the sound name at the slider's label too
+        --Show the sound name at the slider's label and tooltip
         local soundName = soundNames[value]
         if soundName and soundName ~= "" then
             control.label:SetText(data.name .. " " .. soundName)
             data.tooltipText = defaultTooltip ..  "\n" .. soundName
         end
     else
-        --Only show the slider's name at the label
+        --No soundname at the slider's label and tooltip)
         control.label:SetText(data.name)
         data.tooltipText = defaultTooltip
     end
@@ -278,7 +277,34 @@ local function updateSoundSliderLabel(control, value)
     end
 end
 
+local isHandlingChange = false --Prevent endless loop between HandleValueChanged -> slidervalue:SetText -> HandleValueChanged ...
+local function HandleValueChanged(control, value, doNotPlaySound, valueText)
+    if doNotPlaySound == nil then doNotPlaySound = true end
+--d("[LAMSoundSlider]HandleValueChanged-isHandlingChange: " .. tostring(isHandlingChange) .. ", doNotPlaySound: " .. tostring(doNotPlaySound))
+    if control.isDisabled then isHandlingChange = false return end
+    if isHandlingChange then return end
+    isHandlingChange = true
+
+    value = ClampValue(value)
+
+    control.slider:SetValue(value)
+    control.slidervalue:SetText(value)
+
+    --Update the slider label and tooltip
+    updateSoundSliderLabelAndTooltip(control, value)
+
+    --Play the sound now and raise the callback function
+    if not doNotPlaySound then
+        raiseSoundChangedCallback(nil, control, valueText)
+    end
+
+    isHandlingChange = false
+end
+
+
 local function UpdateValue(control, forceDefault, value)
+--d("[LAMSoundSlider]UpdateValue-forceDefault: " .. tostring(forceDefault) .." , value: " ..tostring(value))
+
     local doNotPlaySound = true
     local data = control.data
     local defaultVar = data.default ~= nil and getDefaultValue(data.default)
@@ -330,6 +356,9 @@ local function UpdateValue(control, forceDefault, value)
             valueOfSlider = (value ~= nil and value) or 1
         end
     end
+
+    HandleValueChanged(control, valueOfSlider, doNotPlaySound, value)
+    --[[
     control.slider:SetValue(valueOfSlider)
     control.slidervalue:SetText(valueOfSlider)
 
@@ -338,6 +367,7 @@ local function UpdateValue(control, forceDefault, value)
     if not doNotPlaySound then
         raiseSoundChangedCallback(nil, control, value)
     end
+    ]]
 end
 
 local function OnMouseEnter(control)
@@ -443,22 +473,8 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
         slidervalue:SetFont("ZoFontGameSmall")
     end
 
-    local isHandlingChange = false
-    local function HandleValueChanged(value)
-        if control.isDisabled then isHandlingChange = false return end
-        if isHandlingChange then return end
-        isHandlingChange = true
-
-        value = ClampValue(value)
-        slider:SetValue(value)
-        slidervalue:SetText(value)
-
-        updateSoundSliderLabel(control, value)
-        isHandlingChange = false
-    end
-
     slidervalue:SetHandler("OnEscape", function(self)
-        HandleValueChanged(sliderData.getFunc())
+        HandleValueChanged(control, sliderData.getFunc())
         self:LoseFocus()
     end)
     slidervalue:SetHandler("OnEnter", function(self)
@@ -472,11 +488,13 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
     end)
     slidervalue:SetHandler("OnTextChanged", function(self)
         if control.isDisabled then return end
+        if isHandlingChange then return end
+
         local input = self:GetText()
         if(#input > 1 and not input:sub(-1):match("[0-9]")) then return end
         local value = tonumber(input)
         if(value) then
-            HandleValueChanged(value)
+            HandleValueChanged(control, value)
         end
     end)
     if(sliderData.autoSelect) then
@@ -489,21 +507,25 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
     slider:SetValueStep(sliderData.step or 1)
     slider:SetHandler("OnValueChanged", function(self, value, eventReason)
         if control.isDisabled then return end
+        if isHandlingChange then return end
         if eventReason == EVENT_REASON_SOFTWARE then return end
-        HandleValueChanged(value)
+        HandleValueChanged(control, value)
+        OnMouseEnter(control)
     end)
     slider:SetHandler("OnSliderReleased", function(self, value)
         if control.isDisabled then return end
         if self:GetEnabled() then
             control:UpdateValue(false, value)
+            OnMouseEnter(control)
         end
     end)
 
     local function OnMouseWheel(self, value)
         if control.isDisabled then return end
         if(not self:GetEnabled()) then return end
-        local new_value = ClampValue((tonumber(slidervalue:GetText()) or 0) + (1 * value))
+        local new_value = (tonumber(slidervalue:GetText()) or 0) + (1 * value)
         control:UpdateValue(false, new_value)
+        OnMouseEnter(control) --Update the tooltip to show the currently selected sound name
     end
 
     local sliderHasFocus = false
@@ -522,7 +544,7 @@ function LAMCreateControl.soundslider(parent, sliderData, controlName)
         UpdateScrollEventHandler()
     end)
     slidervalue:SetHandler("OnFocusGained", UpdateScrollEventHandler, SLIDER_HANDLER_NAMESPACE)
-    slidervalue:SetHandler("OnFocusLost", UpdateScrollEventHandler, SLIDER_HANDLER_NAMESPACE)
+    slidervalue:SetHandler("OnFocusLost",   UpdateScrollEventHandler, SLIDER_HANDLER_NAMESPACE)
 
 
     --Show a "Play Sound" button for the preview, or directly play as the setFunc is called?
